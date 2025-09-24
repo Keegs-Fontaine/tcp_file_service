@@ -1,0 +1,6 @@
+{
+  "type": "class",
+  "department": "cs",
+  "course_number": 316,
+  "days": ["monday", "wednesday", "friday"]
+}
