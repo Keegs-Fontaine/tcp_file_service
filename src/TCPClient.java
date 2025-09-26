@@ -4,10 +4,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.Scanner;
 
-/**
- * TODO: Add switch statement for file directory (LIST, DELETE, RENAME)
- *
- */
+ // TODO: Add switch statement for cases Upload and Download
 
 public class TCPClient {
     public static void main(String[] args) throws Exception {
