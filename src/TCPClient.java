@@ -81,6 +81,7 @@ public class TCPClient {
                     channel.shutdownOutput();
                     messageBuffer = ByteBuffer.wrap(clientMessage.getBytes());
                     channel.write(messageBuffer);
+                    //receive status code
                     replyBuffer = ByteBuffer.allocate(1024);
                     bytesRead = channel.read(replyBuffer);
                     channel.close();
@@ -105,12 +106,12 @@ public class TCPClient {
                     ByteBuffer fileNameBuffer = ByteBuffer.allocate(4);
                     fileNameBuffer.putInt(fileName.length());
                     fileNameBuffer.flip();
-                    //TODO: send file content
+                    //TODO: send file content, then receive status code
                     break;
                 //download file
                 case 'D':
                     //TODO: write download case
-                    System.out.println("Enter the filename of what you want to rename:");
+                    System.out.println("Enter the filename of what you want to download:");
                     fileName = keyboard.nextLine();
                     commandBuffer = ByteBuffer.allocate(2);
                     commandBuffer.putChar(command);
@@ -121,14 +122,15 @@ public class TCPClient {
                     channel.shutdownOutput();
                     messageBuffer = ByteBuffer.wrap(fileName.getBytes());
                     channel.write(messageBuffer);
-                    //write something that intercepts the file content
-//                    replyBuffer = ByteBuffer.allocate(1024);
-//                    bytesRead = channel.read(replyBuffer);
-//                    channel.close();
-//                    replyBuffer.flip();
-//                    byteArray = new byte[bytesRead];
-//                    replyBuffer.get(byteArray);
-//                    System.out.println(new String(byteArray));
+                    //write something that intercepts the file content (replybuffer may have to be larger)
+                    //find way to store file content (this'll just be the reverse of the upload case)
+                    replyBuffer = ByteBuffer.allocate(1024);
+                    bytesRead = channel.read(replyBuffer);
+                    channel.close();
+                    replyBuffer.flip();
+                    byteArray = new byte[bytesRead];
+                    replyBuffer.get(byteArray);
+                    System.out.println(new String(byteArray));
                     break;
                 case 'E':
                     System.out.println("Enter the message:");
