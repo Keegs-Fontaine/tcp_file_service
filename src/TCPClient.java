@@ -1,6 +1,9 @@
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Scanner;
 
@@ -26,7 +29,7 @@ public class TCPClient {
             command = userInput.toUpperCase().charAt(0);
 
             switch (command) {
-                //list file
+                //List File
                 case 'L':
                     ByteBuffer commandBuffer = ByteBuffer.allocate(2);
                     commandBuffer.putChar(command);
@@ -43,7 +46,7 @@ public class TCPClient {
                     replyBuffer.get(byteArray);
                     System.out.println(new String(byteArray));
                     break;
-                //delete file
+                //Delete File
                 case 'X':
                     System.out.println("Enter the filename of what you want to delete:");
                     String clientMessage = keyboard.nextLine();
@@ -64,24 +67,23 @@ public class TCPClient {
                     replyBuffer.get(byteArray);
                     System.out.println(new String(byteArray));
                     break;
-                //rename file >> may not work, this will have to be tested
+                //Rename File >> may not work, this will have to be tested
                 case 'R':
                     System.out.println("Enter the filename of what you want to rename:");
-                    String fileName = keyboard.nextLine();
+                    String oldFileName = keyboard.nextLine();
                     System.out.println("Enter the new name:");
                     String newFileName = keyboard.nextLine();
-                    //putting everything into a string with a character separator for the server
-                    clientMessage = fileName + "/" + newFileName;
+                    //put everything into a string with a character separator for the server
+                    clientMessage = oldFileName + "/" + newFileName;
                     commandBuffer = ByteBuffer.allocate(2);
                     commandBuffer.putChar(command);
                     commandBuffer.flip();
                     channel = SocketChannel.open();
                     channel.connect(new InetSocketAddress(args[0], serverPort));
                     channel.write(commandBuffer);
-//                    channel.shutdownOutput();
-                    System.out.println("CLIENT IS SENDING: " + clientMessage);
                     messageBuffer = ByteBuffer.wrap(clientMessage.getBytes());
                     channel.write(messageBuffer);
+                    channel.shutdownOutput();
                     //receive status code
                     replyBuffer = ByteBuffer.allocate(1024);
                     bytesRead = channel.read(replyBuffer);
@@ -91,25 +93,47 @@ public class TCPClient {
                     replyBuffer.get(byteArray);
                     System.out.println(new String(byteArray));
                     break;
-                //upload file >> unfinished
+                //Upload File
                 case 'U':
-                    System.out.println("Enter the filename of what you want to upload:");
-                    fileName = keyboard.nextLine();
-                    //send command
+                    System.out.println("Enter the name of the file you want to upload:");
+                    String fileName = keyboard.nextLine();
+                    File file = new File("ClientFiles", fileName);
+
+                    channel = SocketChannel.open();
+                    channel.connect(new InetSocketAddress(args[0], serverPort));
                     commandBuffer = ByteBuffer.allocate(2);
                     commandBuffer.putChar(command);
                     commandBuffer.flip();
-                    channel = SocketChannel.open();
-                    channel.connect(new InetSocketAddress(args[0], serverPort));
                     channel.write(commandBuffer);
+
+                    ByteBuffer lengthBuffer = ByteBuffer.allocate(4);
+                    int fileNameLength = fileName.length();
+                    lengthBuffer.putInt(fileNameLength);
+                    lengthBuffer.flip();
+                    channel.write(lengthBuffer);
+
+                    ByteBuffer nameBuffer = ByteBuffer.wrap(fileName.getBytes());
+                    channel.write(nameBuffer);
+                    FileInputStream fis = new FileInputStream(file);
+                    FileChannel fc = fis.getChannel();
+                    ByteBuffer contentBuffer = ByteBuffer.allocate(1024);
+                    while(fc.read(contentBuffer) != -1) {
+                        contentBuffer.flip();
+                        channel.write(contentBuffer);
+                        contentBuffer.clear();
+                    }
                     channel.shutdownOutput();
-                    //send file name
-                    ByteBuffer fileNameBuffer = ByteBuffer.allocate(4);
-                    fileNameBuffer.putInt(fileName.length());
-                    fileNameBuffer.flip();
-                    //TODO: send file content, then receive status code
+                    fis.close();
+
+                    replyBuffer = ByteBuffer.allocate(1024);
+                    bytesRead = channel.read(replyBuffer);
+                    channel.close();
+                    replyBuffer.flip();
+                    byteArray = new byte[bytesRead];
+                    replyBuffer.get(byteArray);
+                    System.out.println(new String(byteArray));
                     break;
-                //download file
+                //Download File
                 case 'D':
                     //TODO: write download case
                     System.out.println("Enter the filename of what you want to download:");
@@ -153,6 +177,7 @@ public class TCPClient {
                     replyBuffer.get(byteArray);
                     System.out.println(new String(byteArray));
                     break;
+                //Test Case 'Ping'
                 case 'P':
                     commandBuffer = ByteBuffer.allocate(2);
                     commandBuffer.putChar(command);
