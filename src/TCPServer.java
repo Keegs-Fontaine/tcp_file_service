@@ -4,6 +4,7 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 
 /**
  * I'm leaving a note in here on java file handling since it's pretty extensively documented
@@ -14,6 +15,10 @@ import java.nio.channels.SocketChannel;
 
 public class TCPServer {
     static final int PORT = 3000;
+
+    private static String decodeBuffer(ByteBuffer buf) {
+        return StandardCharsets.UTF_8.decode(buf).toString();
+    }
 
     public static void main(String[] args) {
         System.out.println("hi tcp client");
@@ -68,6 +73,69 @@ public class TCPServer {
                         }
 
                         break;
+
+                    case 'X': {
+                        ByteBuffer filename = ByteBuffer.allocate(1024);
+
+                        serverChannel.read(filename);
+                        filename.flip();
+
+                        File fileToDelete = new File("ServerFiles/" + decodeBuffer(filename));
+
+                        if (fileToDelete.delete()) {
+                            System.out.println("File Deleted");
+
+                            serverChannel.write(ByteBuffer.wrap("OK".getBytes()));
+                        }
+
+                        break;
+                    }
+
+                    case 'R': {
+                        System.out.println("Renaming File");
+
+                        ByteBuffer filenames = ByteBuffer.allocate(1024);
+
+                        serverChannel.read(filenames);
+                        filenames.flip();
+
+                        String decodedFilenames = decodeBuffer(filenames);
+                        String[] splitFilenames = decodedFilenames.split("/");
+
+                        File fileToRename = new File("ServerFiles/" + splitFilenames[0]);
+
+                        boolean didWork = fileToRename.renameTo(new File("ServerFiles/" + splitFilenames[1]));
+
+                        char status = didWork ? 'S' : 'F';
+
+                        byte statusByte = (byte) status;
+
+                        ByteBuffer replyBuffer = ByteBuffer.wrap(new byte[]{statusByte});
+                        serverChannel.write(replyBuffer);
+
+                        break;
+                    }
+
+                    case 'D': {
+
+                        break;
+                    }
+
+                    case 'E': {
+                        ByteBuffer messageBuffer = ByteBuffer.allocate(1024);
+                        bytesRead = serverChannel.read(messageBuffer);
+                        messageBuffer.flip();
+
+                        byte[] messageByteArr = new byte[bytesRead];
+                        messageBuffer.get(messageByteArr);
+
+                        String clientMessage = new String(messageByteArr);
+
+                        ByteBuffer replyBuffer = ByteBuffer.wrap(clientMessage.getBytes());
+                        serverChannel.write(replyBuffer);
+
+                        break;
+                    }
                     default:
                         // TODO make this send a value of "invalid command" back to client
                         System.out.println("Invalid command");
@@ -79,5 +147,9 @@ public class TCPServer {
             System.out.println("Error: " + e.getMessage());
             throw new RuntimeException(e); // TODO add actual exception handling one day, but finish project first
         }
+    }
+
+    private static void printBuffer(ByteBuffer buf) {
+        System.out.println(StandardCharsets.UTF_8.decode(buf));
     }
 }

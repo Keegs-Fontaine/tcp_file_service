@@ -78,7 +78,8 @@ public class TCPClient {
                     channel = SocketChannel.open();
                     channel.connect(new InetSocketAddress(args[0], serverPort));
                     channel.write(commandBuffer);
-                    channel.shutdownOutput();
+//                    channel.shutdownOutput();
+                    System.out.println("CLIENT IS SENDING: " + clientMessage);
                     messageBuffer = ByteBuffer.wrap(clientMessage.getBytes());
                     channel.write(messageBuffer);
                     //receive status code
@@ -177,7 +178,7 @@ public class TCPClient {
     }
 
     //methods to clean up switch statement
-    public static void wrapCommand (char command, String[] args, int serverPort) throws IOException {
+    public static void wrapCommand(char command, String[] args, int serverPort) throws IOException {
         ByteBuffer commandBuffer = ByteBuffer.allocate(2);
         commandBuffer.putChar(command);
         commandBuffer.flip();
