@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Scanner;
+import java.io.RandomAccessFile;
 
 public class TCPClient {
     public static void main(String[] args) throws Exception {
@@ -106,7 +107,7 @@ public class TCPClient {
                     commandBuffer.flip();
                     channel.write(commandBuffer);
 
-                    ByteBuffer lengthBuffer = ByteBuffer.allocate(4);
+                    ByteBuffer lengthBuffer = ByteBuffer.allocate(1024);
                     int fileNameLength = fileName.length();
                     lengthBuffer.putInt(fileNameLength);
                     lengthBuffer.flip();
@@ -117,11 +118,13 @@ public class TCPClient {
                     FileInputStream fis = new FileInputStream(file);
                     FileChannel fc = fis.getChannel();
                     ByteBuffer contentBuffer = ByteBuffer.allocate(1024);
+
                     while(fc.read(contentBuffer) != -1) {
                         contentBuffer.flip();
                         channel.write(contentBuffer);
                         contentBuffer.clear();
                     }
+
                     channel.shutdownOutput();
                     fis.close();
 
@@ -144,18 +147,30 @@ public class TCPClient {
                     channel = SocketChannel.open();
                     channel.connect(new InetSocketAddress(args[0], serverPort));
                     channel.write(commandBuffer);
-                    channel.shutdownOutput();
                     messageBuffer = ByteBuffer.wrap(fileName.getBytes());
                     channel.write(messageBuffer);
+                    channel.shutdownOutput();
                     //write something that intercepts the file content (replybuffer may have to be larger)
                     //find way to store file content (this'll just be the reverse of the upload case)
                     replyBuffer = ByteBuffer.allocate(1024);
-                    bytesRead = channel.read(replyBuffer);
+
+                    File newFile = new File("ClientFiles", fileName);
+                    boolean didCreate = newFile.createNewFile();
+
+                    RandomAccessFile raf = new RandomAccessFile(newFile, "rw");
+                    fc = raf.getChannel();
+
+                    while(channel.read(replyBuffer) != -1) {
+                        replyBuffer.flip();
+
+                        fc.write(replyBuffer);
+
+                        replyBuffer.clear();
+                    }
+
                     channel.close();
                     replyBuffer.flip();
-                    byteArray = new byte[bytesRead];
-                    replyBuffer.get(byteArray);
-                    System.out.println(new String(byteArray));
+
                     break;
                 case 'E':
                     System.out.println("Enter the message:");
