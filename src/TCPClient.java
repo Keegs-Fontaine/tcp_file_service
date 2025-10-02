@@ -1,6 +1,4 @@
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -67,6 +65,15 @@ public class TCPClient {
                     byteArray = new byte[bytesRead];
                     replyBuffer.get(byteArray);
                     System.out.println(new String(byteArray));
+
+                    //receive status code
+                    ByteBuffer statusBuffer = ByteBuffer.allocate(2);
+                    bytesRead = channel.read(statusBuffer);
+                    channel.close();
+                    statusBuffer.flip();
+                    byteArray = new byte[bytesRead];
+                    statusBuffer.get(byteArray);
+                    System.out.println(new String(byteArray));
                     break;
                 //Rename File >> may not work, this will have to be tested
                 case 'R':
@@ -86,17 +93,17 @@ public class TCPClient {
                     channel.write(messageBuffer);
                     channel.shutdownOutput();
                     //receive status code
-                    replyBuffer = ByteBuffer.allocate(1024);
-                    bytesRead = channel.read(replyBuffer);
+                    statusBuffer = ByteBuffer.allocate(2);
+                    bytesRead = channel.read(statusBuffer);
                     channel.close();
-                    replyBuffer.flip();
+                    statusBuffer.flip();
                     byteArray = new byte[bytesRead];
-                    replyBuffer.get(byteArray);
+                    statusBuffer.get(byteArray);
                     System.out.println(new String(byteArray));
                     break;
                 //Upload File
                 case 'U':
-                    System.out.println("Enter the name of the file you want to upload:");
+                    System.out.println("Enter the filename of what you want to upload:");
                     String fileName = keyboard.nextLine();
                     File file = new File("ClientFiles", fileName);
 
@@ -124,21 +131,20 @@ public class TCPClient {
                         channel.write(contentBuffer);
                         contentBuffer.clear();
                     }
-
                     channel.shutdownOutput();
                     fis.close();
 
-                    replyBuffer = ByteBuffer.allocate(1024);
-                    bytesRead = channel.read(replyBuffer);
+                    //receive status code
+                    statusBuffer = ByteBuffer.allocate(2);
+                    bytesRead = channel.read(statusBuffer);
                     channel.close();
-                    replyBuffer.flip();
+                    statusBuffer.flip();
                     byteArray = new byte[bytesRead];
-                    replyBuffer.get(byteArray);
+                    statusBuffer.get(byteArray);
                     System.out.println(new String(byteArray));
                     break;
                 //Download File
                 case 'D':
-                    //TODO: write download case
                     System.out.println("Enter the filename of what you want to download:");
                     fileName = keyboard.nextLine();
                     commandBuffer = ByteBuffer.allocate(2);
@@ -150,28 +156,29 @@ public class TCPClient {
                     messageBuffer = ByteBuffer.wrap(fileName.getBytes());
                     channel.write(messageBuffer);
                     channel.shutdownOutput();
-                    //write something that intercepts the file content (replybuffer may have to be larger)
-                    //find way to store file content (this'll just be the reverse of the upload case)
                     replyBuffer = ByteBuffer.allocate(1024);
-
                     File newFile = new File("ClientFiles", fileName);
                     boolean didCreate = newFile.createNewFile();
-
                     RandomAccessFile raf = new RandomAccessFile(newFile, "rw");
                     fc = raf.getChannel();
-
                     while(channel.read(replyBuffer) != -1) {
                         replyBuffer.flip();
-
                         fc.write(replyBuffer);
-
                         replyBuffer.clear();
                     }
-
                     channel.close();
                     replyBuffer.flip();
 
+                    //receive status code
+                    statusBuffer = ByteBuffer.allocate(2);
+                    bytesRead = channel.read(statusBuffer);
+                    channel.close();
+                    statusBuffer.flip();
+                    byteArray = new byte[bytesRead];
+                    statusBuffer.get(byteArray);
+                    System.out.println(new String(byteArray));
                     break;
+                //Test Case 'Echo'
                 case 'E':
                     System.out.println("Enter the message:");
                     clientMessage = keyboard.nextLine();
@@ -191,6 +198,15 @@ public class TCPClient {
                     byteArray = new byte[bytesRead];
                     replyBuffer.get(byteArray);
                     System.out.println(new String(byteArray));
+
+                    //receive status code
+                    statusBuffer = ByteBuffer.allocate(2);
+                    bytesRead = channel.read(statusBuffer);
+                    channel.close();
+                    statusBuffer.flip();
+                    byteArray = new byte[bytesRead];
+                    statusBuffer.get(byteArray);
+                    System.out.println(new String(byteArray));
                     break;
                 //Test Case 'Ping'
                 case 'P':
@@ -207,6 +223,15 @@ public class TCPClient {
                     replyBuffer.flip();
                     byteArray = new byte[bytesRead];
                     replyBuffer.get(byteArray);
+                    System.out.println(new String(byteArray));
+
+                    //receive status code
+                    statusBuffer = ByteBuffer.allocate(2);
+                    bytesRead = channel.read(statusBuffer);
+                    channel.close();
+                    statusBuffer.flip();
+                    byteArray = new byte[bytesRead];
+                    statusBuffer.get(byteArray);
                     System.out.println(new String(byteArray));
                     break;
                 case 'Q':
