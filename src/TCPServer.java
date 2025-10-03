@@ -1,38 +1,31 @@
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 
-/**
- * I'm leaving a note in here on java file handling since it's pretty extensively documented
- * and you can do a bunch of cool stuff
- * <p>
- * https://www.w3schools.com/java/java_files.asp
- */
-
 public class TCPServer {
-    static final int PORT = 3000;
+    static final int PORT = 4526;
+    static final String DEFAULT_FILE_DIR = "ServerFiles";
+
+    private static void sendFailure(SocketChannel ch) throws IOException {
+        ch.write(ByteBuffer.wrap("F".getBytes()));
+    }
+
+    private static void sendSuccess(SocketChannel ch) throws IOException {
+        ch.write(ByteBuffer.wrap("S".getBytes()));
+    }
 
     private static String decodeBuffer(ByteBuffer buf) {
         return StandardCharsets.UTF_8.decode(buf).toString();
     }
 
     public static void main(String[] args) {
-        System.out.println("hi tcp client");
-
-        // --Deleting a server file-- I cannot attest for the functionality of this code
-//        String fileName = ""; //whatever is passed in from the client
-//        File file = new File("ServerFiles/" + fileName);
-//        if (file.exists()) {
-//            file.delete();
-//            //send a status code: success
-//        } else {
-//            //send a status code: fail
-//        }
-
         try (ServerSocketChannel listenSocket = ServerSocketChannel.open()) {
             listenSocket.bind(new InetSocketAddress(PORT));
 
@@ -46,33 +39,45 @@ public class TCPServer {
                 char command = commandBuffer.getChar();
 
                 switch (command) {
-                    case 'L':
+                    case 'L': {
+                        System.out.println("Listing Files");
 
-                        System.out.println("Getting Files");
-                        // Find list of files in ServerFiles dir
-                        File directory = new File("ServerFiles");
+                        File directory = new File(DEFAULT_FILE_DIR);
 
-                        System.out.println(directory.listFiles());
-
-                        // TODO add error and branch handling
-                        if (directory.exists() && directory.isDirectory()) {
-                            File[] files = directory.listFiles();
-
-                            StringBuilder message = new StringBuilder();
-
-                            if (files != null && files.length > 0) {
-                                for (File file : files) {
-                                    message.append(file.getName()).append("\n");
-                                }
-
-                                System.out.println(message);
-                                ByteBuffer responseBuffer = ByteBuffer.wrap(message.toString().getBytes());
-
-                                serverChannel.write(responseBuffer);
-                            }
+                        if (!directory.exists() || !directory.isDirectory()) {
+                            throw new RuntimeException("Default file directory doesn't exist");
                         }
 
+                        File[] files = directory.listFiles();
+
+                        StringBuilder message = new StringBuilder();
+
+                        if (files == null || files.length == 0) {
+                            System.out.println("No files found");
+                            serverChannel.write(ByteBuffer.wrap("No Files Found".getBytes()));
+                            sendSuccess(serverChannel);
+
+                            break;
+                        }
+
+                        for (File file : files) {
+                            message.append(file.getName()).append("\n");
+                        }
+
+                        ByteBuffer responseBuffer = ByteBuffer.wrap(message.toString().getBytes());
+
+                        try {
+                            serverChannel.write(responseBuffer);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            sendFailure(serverChannel);
+
+                            break;
+                        }
+
+                        sendSuccess(serverChannel);
                         break;
+                    }
 
                     case 'X': {
                         ByteBuffer filename = ByteBuffer.allocate(1024);
@@ -80,12 +85,14 @@ public class TCPServer {
                         serverChannel.read(filename);
                         filename.flip();
 
-                        File fileToDelete = new File("ServerFiles/" + decodeBuffer(filename));
+                        File fileToDelete = new File(DEFAULT_FILE_DIR, decodeBuffer(filename));
 
                         if (fileToDelete.delete()) {
                             System.out.println("File Deleted");
 
-                            serverChannel.write(ByteBuffer.wrap("OK".getBytes()));
+                            sendSuccess(serverChannel);
+                        } else {
+                            sendFailure(serverChannel);
                         }
 
                         break;
@@ -102,21 +109,94 @@ public class TCPServer {
                         String decodedFilenames = decodeBuffer(filenames);
                         String[] splitFilenames = decodedFilenames.split("/");
 
-                        File fileToRename = new File("ServerFiles/" + splitFilenames[0]);
+                        File fileToRename = new File(DEFAULT_FILE_DIR, splitFilenames[0]);
 
-                        boolean didWork = fileToRename.renameTo(new File("ServerFiles/" + splitFilenames[1]));
+                        boolean didWork = fileToRename.renameTo(new File(DEFAULT_FILE_DIR, splitFilenames[1]));
 
-                        char status = didWork ? 'S' : 'F';
+                        if (didWork) {
+                            sendSuccess(serverChannel);
+                        } else {
+                            sendFailure(serverChannel);
+                        }
 
-                        byte statusByte = (byte) status;
+                        break;
+                    }
 
-                        ByteBuffer replyBuffer = ByteBuffer.wrap(new byte[]{statusByte});
-                        serverChannel.write(replyBuffer);
+                    case 'U': {
+                        System.out.println("Uploading File");
+
+                        ByteBuffer filenameLength = ByteBuffer.allocate(4);
+                        serverChannel.read(filenameLength);
+                        filenameLength.flip();
+
+                        int actualLength = filenameLength.getInt();
+
+                        ByteBuffer filename = ByteBuffer.allocate(actualLength);
+                        serverChannel.read(filename);
+                        filename.flip();
+
+                        String decodedFilename = decodeBuffer(filename);
+
+                        System.out.println(decodedFilename);
+
+                        File fileToUpload = new File(DEFAULT_FILE_DIR, decodedFilename);
+                        boolean didCreate = fileToUpload.createNewFile();
+
+                        if (!didCreate) {
+                            sendFailure(serverChannel);
+
+                            break;
+                        }
+
+                        FileOutputStream fos = new FileOutputStream(fileToUpload);
+                        FileChannel fc = fos.getChannel();
+
+                        ByteBuffer contentBuffer = ByteBuffer.allocate(1024);
+
+                        while (serverChannel.read(contentBuffer) != -1) {
+                            contentBuffer.flip();
+                            fc.write(contentBuffer);
+                            contentBuffer.clear();
+                        }
+
+                        sendSuccess(serverChannel);
+
+                        fc.close();
 
                         break;
                     }
 
                     case 'D': {
+                        System.out.println("Downloading File");
+
+                        ByteBuffer filename = ByteBuffer.allocate(1024);
+                        serverChannel.read(filename);
+                        filename.flip();
+
+                        String decodedFilename = decodeBuffer(filename);
+
+                        File fileToDownload = new File(DEFAULT_FILE_DIR, decodedFilename);
+                        FileInputStream fileInputStream = new FileInputStream(fileToDownload);
+                        FileChannel fis = fileInputStream.getChannel();
+
+                        ByteBuffer responseBuffer = ByteBuffer.allocate(1024);
+
+                        while (fis.read(responseBuffer) != -1) {
+                            responseBuffer.flip();
+
+                            serverChannel.write(responseBuffer);
+                            responseBuffer.clear();
+                        }
+
+                        responseBuffer.flip();
+                        fis.close();
+
+                        if (!fis.isOpen()) {
+                            Thread.sleep(5000);
+                            sendSuccess(serverChannel);
+                        }
+
+                        fileInputStream.close();
 
                         break;
                     }
@@ -136,6 +216,15 @@ public class TCPServer {
 
                         break;
                     }
+
+                    case 'P': {
+                        String serverReply = "pong";
+                        ByteBuffer replyBuffer = ByteBuffer.wrap(serverReply.getBytes());
+                        serverChannel.write(replyBuffer);
+                        serverChannel.close();
+                        break;
+                    }
+
                     default:
                         // TODO make this send a value of "invalid command" back to client
                         System.out.println("Invalid command");
@@ -146,6 +235,8 @@ public class TCPServer {
         } catch (IOException e) {
             System.out.println("Error: " + e.getMessage());
             throw new RuntimeException(e); // TODO add actual exception handling one day, but finish project first
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 

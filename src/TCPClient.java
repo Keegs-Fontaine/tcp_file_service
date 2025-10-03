@@ -1,10 +1,13 @@
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
-import java.io.RandomAccessFile;
 
 public class TCPClient {
     public static void main(String[] args) throws Exception {
@@ -39,11 +42,19 @@ public class TCPClient {
                     channel.shutdownOutput();
                     ByteBuffer replyBuffer = ByteBuffer.allocate(1024);
                     int bytesRead = channel.read(replyBuffer);
-                    channel.close();
                     replyBuffer.flip();
                     byte[] byteArray = new byte[bytesRead];
                     replyBuffer.get(byteArray);
                     System.out.println(new String(byteArray));
+
+                    ByteBuffer status = ByteBuffer.allocate(4);
+                    channel.read(status);
+                    status.flip();
+
+                    System.out.println(StandardCharsets.UTF_8.decode(status));
+
+                    channel.close();
+
                     break;
                 //Delete File
                 case 'X':
@@ -60,7 +71,6 @@ public class TCPClient {
                     channel.shutdownOutput();
                     replyBuffer = ByteBuffer.allocate(1024);
                     bytesRead = channel.read(replyBuffer);
-                    channel.close();
                     replyBuffer.flip();
                     byteArray = new byte[bytesRead];
                     replyBuffer.get(byteArray);
@@ -71,9 +81,7 @@ public class TCPClient {
                     bytesRead = channel.read(statusBuffer);
                     channel.close();
                     statusBuffer.flip();
-                    byteArray = new byte[bytesRead];
-                    statusBuffer.get(byteArray);
-                    System.out.println(new String(byteArray));
+                    System.out.println(StandardCharsets.UTF_8.decode(statusBuffer));
                     break;
                 //Rename File >> may not work, this will have to be tested
                 case 'R':
@@ -114,7 +122,7 @@ public class TCPClient {
                     commandBuffer.flip();
                     channel.write(commandBuffer);
 
-                    ByteBuffer lengthBuffer = ByteBuffer.allocate(1024);
+                    ByteBuffer lengthBuffer = ByteBuffer.allocate(4);
                     int fileNameLength = fileName.length();
                     lengthBuffer.putInt(fileNameLength);
                     lengthBuffer.flip();
@@ -126,7 +134,7 @@ public class TCPClient {
                     FileChannel fc = fis.getChannel();
                     ByteBuffer contentBuffer = ByteBuffer.allocate(1024);
 
-                    while(fc.read(contentBuffer) != -1) {
+                    while (fc.read(contentBuffer) != -1) {
                         contentBuffer.flip();
                         channel.write(contentBuffer);
                         contentBuffer.clear();
@@ -161,22 +169,21 @@ public class TCPClient {
                     boolean didCreate = newFile.createNewFile();
                     RandomAccessFile raf = new RandomAccessFile(newFile, "rw");
                     fc = raf.getChannel();
-                    while(channel.read(replyBuffer) != -1) {
+                    while (channel.read(replyBuffer) != -1) {
                         replyBuffer.flip();
                         fc.write(replyBuffer);
                         replyBuffer.clear();
                     }
-                    channel.close();
-                    replyBuffer.flip();
+
+                    raf.close();
 
                     //receive status code
                     statusBuffer = ByteBuffer.allocate(2);
                     bytesRead = channel.read(statusBuffer);
-                    channel.close();
                     statusBuffer.flip();
-                    byteArray = new byte[bytesRead];
-                    statusBuffer.get(byteArray);
-                    System.out.println(new String(byteArray));
+                    System.out.println(StandardCharsets.UTF_8.decode(statusBuffer) + "argh");
+
+                    channel.close();
                     break;
                 //Test Case 'Echo'
                 case 'E':
