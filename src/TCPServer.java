@@ -169,6 +169,8 @@ public class TCPServer {
                     case 'D': {
                         System.out.println("Downloading File");
 
+                        int blockSize = 1024;
+
                         ByteBuffer filename = ByteBuffer.allocate(1024);
                         serverChannel.read(filename);
                         filename.flip();
@@ -178,6 +180,17 @@ public class TCPServer {
                         File fileToDownload = new File(DEFAULT_FILE_DIR, decodedFilename);
                         FileInputStream fileInputStream = new FileInputStream(fileToDownload);
                         FileChannel fis = fileInputStream.getChannel();
+
+                        long fileLength = fileToDownload.length();
+                        System.out.println("length is: " + fileLength);
+                        int chunkCount = (int) Math.ceil((double) fileLength / blockSize);
+                        System.out.println("chunk count is: " + chunkCount);
+
+                        ByteBuffer chunkBuffer = ByteBuffer.allocate(4);
+                        chunkBuffer.putInt(chunkCount);
+
+                        chunkBuffer.flip();
+                        serverChannel.write(chunkBuffer);
 
                         ByteBuffer responseBuffer = ByteBuffer.allocate(1024);
 

@@ -169,7 +169,16 @@ public class TCPClient {
                     boolean didCreate = newFile.createNewFile();
                     RandomAccessFile raf = new RandomAccessFile(newFile, "rw");
                     fc = raf.getChannel();
-                    while (channel.read(replyBuffer) != -1) {
+
+                    ByteBuffer chunkBuffer = ByteBuffer.allocate(4);
+
+                    channel.read(chunkBuffer);
+
+                    chunkBuffer.flip();
+                    int chunkCount = chunkBuffer.getInt();
+
+                    for (int i = 0; i < chunkCount; i++) {
+                        channel.read(replyBuffer);
                         replyBuffer.flip();
                         fc.write(replyBuffer);
                         replyBuffer.clear();
