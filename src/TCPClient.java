@@ -170,12 +170,15 @@ public class TCPClient {
                     RandomAccessFile raf = new RandomAccessFile(newFile, "rw");
                     fc = raf.getChannel();
 
-                    ByteBuffer chunkBuffer = ByteBuffer.allocate(4);
+                    ByteBuffer fileBytes = ByteBuffer.allocate(8);
 
-                    channel.read(chunkBuffer);
+                    channel.read(fileBytes);
 
-                    chunkBuffer.flip();
-                    int chunkCount = chunkBuffer.getInt();
+                    fileBytes.flip();
+                    long fileLength = fileBytes.getLong();
+
+                    long chunkCount = Math.floorDiv(fileLength, 1024);
+                    int remainder = Math.toIntExact(fileLength % 1024);
 
                     for (int i = 0; i < chunkCount; i++) {
                         channel.read(replyBuffer);
@@ -184,71 +187,25 @@ public class TCPClient {
                         replyBuffer.clear();
                     }
 
+                    // make remainder buffer
+                    ByteBuffer remainderBuffer = ByteBuffer.allocate(remainder);
+                    channel.read(remainderBuffer);
+                    remainderBuffer.flip();
+                    fc.write(remainderBuffer);
+                    replyBuffer.clear();
+
                     raf.close();
+                    fc.close();
 
                     //receive status code
-                    statusBuffer = ByteBuffer.allocate(2);
-                    bytesRead = channel.read(statusBuffer);
-                    statusBuffer.flip();
-                    System.out.println(StandardCharsets.UTF_8.decode(statusBuffer) + "argh");
+                    if (!fc.isOpen()) {
+                        statusBuffer = ByteBuffer.allocate(2);
+                        channel.read(statusBuffer);
+                        statusBuffer.flip();
+                        System.out.println(StandardCharsets.UTF_8.decode(statusBuffer));
+                    }
 
                     channel.close();
-                    break;
-                //Test Case 'Echo'
-                case 'E':
-                    System.out.println("Enter the message:");
-                    clientMessage = keyboard.nextLine();
-                    commandBuffer = ByteBuffer.allocate(2);
-                    commandBuffer.putChar(command);
-                    commandBuffer.flip();
-                    channel = SocketChannel.open();
-                    channel.connect(new InetSocketAddress(args[0], serverPort));
-                    channel.write(commandBuffer);
-                    messageBuffer = ByteBuffer.wrap(clientMessage.getBytes());
-                    channel.write(messageBuffer);
-                    channel.shutdownOutput();
-                    replyBuffer = ByteBuffer.allocate(1024);
-                    bytesRead = channel.read(replyBuffer);
-                    channel.close();
-                    replyBuffer.flip();
-                    byteArray = new byte[bytesRead];
-                    replyBuffer.get(byteArray);
-                    System.out.println(new String(byteArray));
-
-                    //receive status code
-                    statusBuffer = ByteBuffer.allocate(2);
-                    bytesRead = channel.read(statusBuffer);
-                    channel.close();
-                    statusBuffer.flip();
-                    byteArray = new byte[bytesRead];
-                    statusBuffer.get(byteArray);
-                    System.out.println(new String(byteArray));
-                    break;
-                //Test Case 'Ping'
-                case 'P':
-                    commandBuffer = ByteBuffer.allocate(2);
-                    commandBuffer.putChar(command);
-                    commandBuffer.flip();
-                    channel = SocketChannel.open();
-                    channel.connect(new InetSocketAddress(args[0], serverPort));
-                    channel.write(commandBuffer);
-                    channel.shutdownOutput();
-                    replyBuffer = ByteBuffer.allocate(1024);
-                    bytesRead = channel.read(replyBuffer);
-                    channel.close();
-                    replyBuffer.flip();
-                    byteArray = new byte[bytesRead];
-                    replyBuffer.get(byteArray);
-                    System.out.println(new String(byteArray));
-
-                    //receive status code
-                    statusBuffer = ByteBuffer.allocate(2);
-                    bytesRead = channel.read(statusBuffer);
-                    channel.close();
-                    statusBuffer.flip();
-                    byteArray = new byte[bytesRead];
-                    statusBuffer.get(byteArray);
-                    System.out.println(new String(byteArray));
                     break;
                 case 'Q':
                     break;

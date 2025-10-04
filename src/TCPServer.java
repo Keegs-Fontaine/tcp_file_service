@@ -169,8 +169,6 @@ public class TCPServer {
                     case 'D': {
                         System.out.println("Downloading File");
 
-                        int blockSize = 1024;
-
                         ByteBuffer filename = ByteBuffer.allocate(1024);
                         serverChannel.read(filename);
                         filename.flip();
@@ -182,15 +180,11 @@ public class TCPServer {
                         FileChannel fis = fileInputStream.getChannel();
 
                         long fileLength = fileToDownload.length();
-                        System.out.println("length is: " + fileLength);
-                        int chunkCount = (int) Math.ceil((double) fileLength / blockSize);
-                        System.out.println("chunk count is: " + chunkCount);
+                        ByteBuffer lengthBuffer = ByteBuffer.allocate(8);
+                        lengthBuffer.putLong(fileLength);
 
-                        ByteBuffer chunkBuffer = ByteBuffer.allocate(4);
-                        chunkBuffer.putInt(chunkCount);
-
-                        chunkBuffer.flip();
-                        serverChannel.write(chunkBuffer);
+                        lengthBuffer.flip();
+                        serverChannel.write(lengthBuffer);
 
                         ByteBuffer responseBuffer = ByteBuffer.allocate(1024);
 
@@ -204,37 +198,10 @@ public class TCPServer {
                         responseBuffer.flip();
                         fis.close();
 
-                        if (!fis.isOpen()) {
-                            Thread.sleep(5000);
-                            sendSuccess(serverChannel);
-                        }
+                        sendSuccess(serverChannel);
 
                         fileInputStream.close();
 
-                        break;
-                    }
-
-                    case 'E': {
-                        ByteBuffer messageBuffer = ByteBuffer.allocate(1024);
-                        bytesRead = serverChannel.read(messageBuffer);
-                        messageBuffer.flip();
-
-                        byte[] messageByteArr = new byte[bytesRead];
-                        messageBuffer.get(messageByteArr);
-
-                        String clientMessage = new String(messageByteArr);
-
-                        ByteBuffer replyBuffer = ByteBuffer.wrap(clientMessage.getBytes());
-                        serverChannel.write(replyBuffer);
-
-                        break;
-                    }
-
-                    case 'P': {
-                        String serverReply = "pong";
-                        ByteBuffer replyBuffer = ByteBuffer.wrap(serverReply.getBytes());
-                        serverChannel.write(replyBuffer);
-                        serverChannel.close();
                         break;
                     }
 
@@ -248,8 +215,6 @@ public class TCPServer {
         } catch (IOException e) {
             System.out.println("Error: " + e.getMessage());
             throw new RuntimeException(e); // TODO add actual exception handling one day, but finish project first
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
         }
     }
 
