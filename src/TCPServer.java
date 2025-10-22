@@ -10,7 +10,7 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 
 public class TCPServer {
-    static final int PORT = 4526;
+    static final int PORT = 3000;
     static final String DEFAULT_FILE_DIR = "ServerFiles";
 
     private static void sendFailure(SocketChannel ch) throws IOException {

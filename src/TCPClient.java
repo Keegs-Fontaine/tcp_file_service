@@ -83,7 +83,7 @@ public class TCPClient {
                     statusBuffer.flip();
                     System.out.println(StandardCharsets.UTF_8.decode(statusBuffer));
                     break;
-                //Rename File >> may not work, this will have to be tested
+                //Rename File
                 case 'R':
                     System.out.println("Enter the filename of what you want to rename:");
                     String oldFileName = keyboard.nextLine();
@@ -204,7 +204,6 @@ public class TCPClient {
                         statusBuffer.flip();
                         System.out.println(StandardCharsets.UTF_8.decode(statusBuffer));
                     }
-
                     channel.close();
                     break;
                 case 'Q':
