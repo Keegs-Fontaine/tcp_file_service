@@ -18,6 +18,8 @@ public class TCPClient {
             return;
         }
         int serverPort = Integer.parseInt(args[1]);
+        ExecutorService es = Executors.newFixedThreadPool(4);
+
         Scanner keyboard = new Scanner(System.in);
         char command;
         do {
@@ -32,7 +34,6 @@ public class TCPClient {
             String userInput = keyboard.nextLine();
             command = userInput.toUpperCase().charAt(0);
 
-            ExecutorService es = Executors.newFixedThreadPool(4);
             es.submit(new ClientRunnable(serverPort, args, command));
 
         } while (command != 'Q');

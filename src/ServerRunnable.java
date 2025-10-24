@@ -14,7 +14,7 @@ public class ServerRunnable implements Runnable {
     private final SocketChannel serverChannel;
     private final char command;
 
-    public ServerRunnable (SocketChannel serverChannel, char command) {
+    public ServerRunnable (SocketChannel serverChannel) {
         this.serverChannel = serverChannel;
         this.command = command;
     }
@@ -36,7 +36,12 @@ public class ServerRunnable implements Runnable {
 
     public void run() {
         try {
-            while (true) {
+                ByteBuffer commandBuffer = ByteBuffer.allocate(2);
+                int bytesRead = serverChannel.read(commandBuffer);
+                commandBuffer.flip();
+
+                char command = commandBuffer.getChar();
+
                 switch (command) {
                     case 'L': {
                         System.out.println("Listing Files");
@@ -208,7 +213,6 @@ public class ServerRunnable implements Runnable {
                         System.out.println("Invalid command");
                 }
                 serverChannel.close();
-            }
         } catch (IOException e) {
             System.out.println("Error: " + e.getMessage());
             throw new RuntimeException(e); // TODO add actual exception handling one day, but finish project first

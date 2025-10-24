@@ -12,19 +12,13 @@ public class TCPServer {
     static final int PORT = 4526;
 
     public static void main(String[] args) {
+
         try (ServerSocketChannel listenSocket = ServerSocketChannel.open()) {
             listenSocket.bind(new InetSocketAddress(PORT));
+            ExecutorService es = Executors.newFixedThreadPool(4);
             while (true) {
                 SocketChannel serverChannel = listenSocket.accept();
-
-                ByteBuffer commandBuffer = ByteBuffer.allocate(2);
-                int bytesRead = serverChannel.read(commandBuffer);
-                commandBuffer.flip();
-
-                char command = commandBuffer.getChar();
-
-                ExecutorService es = Executors.newFixedThreadPool(4);
-                es.submit(new ServerRunnable(serverChannel, command));
+                es.submit(new ServerRunnable(serverChannel));
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
