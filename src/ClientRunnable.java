@@ -1,0 +1,208 @@
+import java.io.*;
+import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
+import java.util.Scanner;
+
+public class ClientRunnable implements Runnable {
+    private final int serverPort;
+    private final String[] args;
+    private final char command;
+    public ClientRunnable (int serverPort, String[] args, char command) {
+        this.serverPort = serverPort;
+        this.args = args;
+        this.command = command;
+    }
+    public void run() {
+        try {
+            Scanner keyboard = new Scanner(System.in);
+            switch (command) {
+                //List File
+                case 'L':
+                    ByteBuffer commandBuffer = ByteBuffer.allocate(2);
+                    commandBuffer.putChar(command);
+                    commandBuffer.flip();
+                    SocketChannel channel = SocketChannel.open();
+                    channel.connect(new InetSocketAddress(args[0], serverPort));
+                    channel.write(commandBuffer);
+                    channel.shutdownOutput();
+                    ByteBuffer replyBuffer = ByteBuffer.allocate(1024);
+                    int bytesRead = channel.read(replyBuffer);
+                    replyBuffer.flip();
+                    byte[] byteArray = new byte[bytesRead];
+                    replyBuffer.get(byteArray);
+                    System.out.println(new String(byteArray));
+
+                    ByteBuffer status = ByteBuffer.allocate(4);
+                    channel.read(status);
+                    status.flip();
+
+                    System.out.println(StandardCharsets.UTF_8.decode(status));
+
+                    channel.close();
+
+                    break;
+                //Delete File
+                case 'X':
+                    System.out.println("Enter the filename of what you want to delete:");
+                    String clientMessage = keyboard.nextLine();
+                    commandBuffer = ByteBuffer.allocate(2);
+                    commandBuffer.putChar(command);
+                    commandBuffer.flip();
+                    channel = SocketChannel.open();
+                    channel.connect(new InetSocketAddress(args[0], serverPort));
+                    channel.write(commandBuffer);
+                    ByteBuffer messageBuffer = ByteBuffer.wrap(clientMessage.getBytes());
+                    channel.write(messageBuffer);
+                    channel.shutdownOutput();
+                    replyBuffer = ByteBuffer.allocate(1024);
+                    bytesRead = channel.read(replyBuffer);
+                    replyBuffer.flip();
+                    byteArray = new byte[bytesRead];
+                    replyBuffer.get(byteArray);
+                    System.out.println(new String(byteArray));
+
+                    //receive status code
+                    ByteBuffer statusBuffer = ByteBuffer.allocate(2);
+                    bytesRead = channel.read(statusBuffer);
+                    channel.close();
+                    statusBuffer.flip();
+                    System.out.println(StandardCharsets.UTF_8.decode(statusBuffer));
+                    break;
+                //Rename File >> may not work, this will have to be tested
+                case 'R':
+                    System.out.println("Enter the filename of what you want to rename:");
+                    String oldFileName = keyboard.nextLine();
+                    System.out.println("Enter the new name:");
+                    String newFileName = keyboard.nextLine();
+                    //put everything into a string with a character separator for the server
+                    clientMessage = oldFileName + "/" + newFileName;
+                    commandBuffer = ByteBuffer.allocate(2);
+                    commandBuffer.putChar(command);
+                    commandBuffer.flip();
+                    channel = SocketChannel.open();
+                    channel.connect(new InetSocketAddress(args[0], serverPort));
+                    channel.write(commandBuffer);
+                    messageBuffer = ByteBuffer.wrap(clientMessage.getBytes());
+                    channel.write(messageBuffer);
+                    channel.shutdownOutput();
+                    //receive status code
+                    statusBuffer = ByteBuffer.allocate(2);
+                    bytesRead = channel.read(statusBuffer);
+                    channel.close();
+                    statusBuffer.flip();
+                    byteArray = new byte[bytesRead];
+                    statusBuffer.get(byteArray);
+                    System.out.println(new String(byteArray));
+                    break;
+                //Upload File
+                case 'U':
+                    System.out.println("Enter the filename of what you want to upload:");
+                    String fileName = keyboard.nextLine();
+                    File file = new File("ClientFiles", fileName);
+
+                    channel = SocketChannel.open();
+                    channel.connect(new InetSocketAddress(args[0], serverPort));
+                    commandBuffer = ByteBuffer.allocate(2);
+                    commandBuffer.putChar(command);
+                    commandBuffer.flip();
+                    channel.write(commandBuffer);
+
+                    ByteBuffer lengthBuffer = ByteBuffer.allocate(4);
+                    int fileNameLength = fileName.length();
+                    lengthBuffer.putInt(fileNameLength);
+                    lengthBuffer.flip();
+                    channel.write(lengthBuffer);
+
+                    ByteBuffer nameBuffer = ByteBuffer.wrap(fileName.getBytes());
+                    channel.write(nameBuffer);
+                    FileInputStream fis = new FileInputStream(file);
+                    FileChannel fc = fis.getChannel();
+                    ByteBuffer contentBuffer = ByteBuffer.allocate(1024);
+
+                    while (fc.read(contentBuffer) != -1) {
+                        contentBuffer.flip();
+                        channel.write(contentBuffer);
+                        contentBuffer.clear();
+                    }
+                    channel.shutdownOutput();
+                    fis.close();
+
+                    //receive status code
+                    statusBuffer = ByteBuffer.allocate(2);
+                    bytesRead = channel.read(statusBuffer);
+                    channel.close();
+                    statusBuffer.flip();
+                    byteArray = new byte[bytesRead];
+                    statusBuffer.get(byteArray);
+                    System.out.println(new String(byteArray));
+                    break;
+                //Download File
+                case 'D':
+                    System.out.println("Enter the filename of what you want to download:");
+                    fileName = keyboard.nextLine();
+                    commandBuffer = ByteBuffer.allocate(2);
+                    commandBuffer.putChar(command);
+                    commandBuffer.flip();
+                    channel = SocketChannel.open();
+                    channel.connect(new InetSocketAddress(args[0], serverPort));
+                    channel.write(commandBuffer);
+                    messageBuffer = ByteBuffer.wrap(fileName.getBytes());
+                    channel.write(messageBuffer);
+                    channel.shutdownOutput();
+                    replyBuffer = ByteBuffer.allocate(1024);
+                    File newFile = new File("ClientFiles", fileName);
+                    boolean didCreate = newFile.createNewFile();
+                    RandomAccessFile raf = new RandomAccessFile(newFile, "rw");
+                    fc = raf.getChannel();
+
+                    ByteBuffer fileBytes = ByteBuffer.allocate(8);
+
+                    channel.read(fileBytes);
+
+                    fileBytes.flip();
+                    long fileLength = fileBytes.getLong();
+
+                    long chunkCount = Math.floorDiv(fileLength, 1024);
+                    int remainder = Math.toIntExact(fileLength % 1024);
+
+                    for (int i = 0; i < chunkCount; i++) {
+                        channel.read(replyBuffer);
+                        replyBuffer.flip();
+                        fc.write(replyBuffer);
+                        replyBuffer.clear();
+                    }
+
+                    // make remainder buffer
+                    ByteBuffer remainderBuffer = ByteBuffer.allocate(remainder);
+                    channel.read(remainderBuffer);
+                    remainderBuffer.flip();
+                    fc.write(remainderBuffer);
+                    replyBuffer.clear();
+
+                    raf.close();
+                    fc.close();
+
+                    //receive status code
+                    if (!fc.isOpen()) {
+                        statusBuffer = ByteBuffer.allocate(2);
+                        channel.read(statusBuffer);
+                        statusBuffer.flip();
+                        System.out.println(StandardCharsets.UTF_8.decode(statusBuffer));
+                    }
+
+                    channel.close();
+                    break;
+                case 'Q':
+                    break;
+                default:
+                    System.err.println("Invalid command, try again.");
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+}
