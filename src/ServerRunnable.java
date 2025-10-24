@@ -12,11 +12,9 @@ import java.nio.charset.StandardCharsets;
 public class ServerRunnable implements Runnable {
     static final String DEFAULT_FILE_DIR = "ServerFiles";
     private final SocketChannel serverChannel;
-    private final char command;
 
     public ServerRunnable (SocketChannel serverChannel) {
         this.serverChannel = serverChannel;
-        this.command = command;
     }
     private static void sendFailure(SocketChannel ch) throws IOException {
         ch.write(ByteBuffer.wrap("F".getBytes()));
