@@ -6,11 +6,11 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 
-public class ClientRunnable implements Runnable {
+public class RunClientTask implements Runnable {
     private final int serverPort;
     private final String[] args;
     private final char command;
-    public ClientRunnable (int serverPort, String[] args, char command) {
+    public RunClientTask(int serverPort, String[] args, char command) {
         this.serverPort = serverPort;
         this.args = args;
         this.command = command;

@@ -7,13 +7,11 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 
-
-
-public class ServerRunnable implements Runnable {
+public class RunServerTask implements Runnable {
     static final String DEFAULT_FILE_DIR = "ServerFiles";
     private final SocketChannel serverChannel;
 
-    public ServerRunnable (SocketChannel serverChannel) {
+    public RunServerTask(SocketChannel serverChannel) {
         this.serverChannel = serverChannel;
     }
     private static void sendFailure(SocketChannel ch) throws IOException {

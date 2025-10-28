@@ -1,12 +1,3 @@
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.channels.SocketChannel;
-import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -34,7 +25,7 @@ public class TCPClient {
             String userInput = keyboard.nextLine();
             command = userInput.toUpperCase().charAt(0);
 
-            es.submit(new ClientRunnable(serverPort, args, command));
+            es.submit(new RunClientTask(serverPort, args, command));
 
         } while (command != 'Q');
     }
