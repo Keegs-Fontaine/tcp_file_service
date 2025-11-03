@@ -20,7 +20,6 @@ public class TCPClient {
                     "\nR - rename a file" +
                     "\nU - upload a file" +
                     "\nD - download a file" +
-                    "\nE - echo a message" +
                     "\nQ - quit program\n");
             String userInput = keyboard.nextLine();
             command = userInput.toUpperCase().charAt(0);
