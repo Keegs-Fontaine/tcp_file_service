@@ -1,7 +1,7 @@
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -154,56 +154,61 @@ public class TCPClient {
                 //Download File
                 case 'D':
                     System.out.println("Enter the filename of what you want to download:");
+
                     fileName = keyboard.nextLine();
                     commandBuffer = ByteBuffer.allocate(2);
                     commandBuffer.putChar(command);
                     commandBuffer.flip();
+
                     channel = SocketChannel.open();
                     channel.connect(new InetSocketAddress(args[0], serverPort));
                     channel.write(commandBuffer);
+
                     messageBuffer = ByteBuffer.wrap(fileName.getBytes());
                     channel.write(messageBuffer);
                     channel.shutdownOutput();
-                    replyBuffer = ByteBuffer.allocate(1024);
+
+                    // Read filesize from server
+                    contentBuffer = ByteBuffer.allocate(8);
+                    channel.read(contentBuffer);
+                    contentBuffer.flip();
+                    final long fileLength = contentBuffer.getLong();
+
+                    System.out.println(fileLength);
+
+                    // create new file from filename
                     File newFile = new File("ClientFiles", fileName);
-                    boolean didCreate = newFile.createNewFile();
-                    RandomAccessFile raf = new RandomAccessFile(newFile, "rw");
-                    fc = raf.getChannel();
+                    newFile.createNewFile();
+                    FileOutputStream fos = new FileOutputStream(newFile);
+                    fc = fos.getChannel();
 
-                    ByteBuffer fileBytes = ByteBuffer.allocate(8);
+                    contentBuffer = ByteBuffer.allocate(1024);
+                    long totalBytesRead = 0;
+                    bytesRead = 0;
+                    while (totalBytesRead + 1024 < fileLength) {
+                        bytesRead = channel.read(contentBuffer);
+                        contentBuffer.flip();
+                        fc.write(contentBuffer);
+                        contentBuffer.clear();
 
-                    channel.read(fileBytes);
-
-                    fileBytes.flip();
-                    long fileLength = fileBytes.getLong();
-
-                    long chunkCount = Math.floorDiv(fileLength, 1024);
-                    int remainder = Math.toIntExact(fileLength % 1024);
-
-                    for (int i = 0; i < chunkCount; i++) {
-                        channel.read(replyBuffer);
-                        replyBuffer.flip();
-                        fc.write(replyBuffer);
-                        replyBuffer.clear();
+                        totalBytesRead += bytesRead;
                     }
 
-                    // make remainder buffer
-                    ByteBuffer remainderBuffer = ByteBuffer.allocate(remainder);
-                    channel.read(remainderBuffer);
-                    remainderBuffer.flip();
-                    fc.write(remainderBuffer);
-                    replyBuffer.clear();
+                    // get remaining bytes
+                    int remainingBytes = Math.toIntExact(fileLength - totalBytesRead);
+                    System.out.println(remainingBytes);
+                    contentBuffer.clear();
+                    contentBuffer = ByteBuffer.allocate(remainingBytes);
+                    channel.read(contentBuffer);
+                    contentBuffer.flip();
+                    fc.write(contentBuffer);
 
-                    raf.close();
-                    fc.close();
+                    // read status code
+                    ByteBuffer statusBuf = ByteBuffer.allocate(2);
+                    channel.read(statusBuf);
+                    statusBuf.flip();
 
-                    //receive status code
-                    if (!fc.isOpen()) {
-                        statusBuffer = ByteBuffer.allocate(2);
-                        channel.read(statusBuffer);
-                        statusBuffer.flip();
-                        System.out.println(StandardCharsets.UTF_8.decode(statusBuffer));
-                    }
+                    System.out.println(StandardCharsets.UTF_8.decode(statusBuf));
 
                     channel.close();
                     break;

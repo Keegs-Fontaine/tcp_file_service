@@ -179,28 +179,34 @@ public class TCPServer {
                         FileInputStream fileInputStream = new FileInputStream(fileToDownload);
                         FileChannel fis = fileInputStream.getChannel();
 
+                        System.out.println(fileToDownload.getAbsolutePath());
+
+                        serverChannel.shutdownInput();
+
+                        // get filelength and send it
                         long fileLength = fileToDownload.length();
-                        ByteBuffer lengthBuffer = ByteBuffer.allocate(8);
-                        lengthBuffer.putLong(fileLength);
+                        ByteBuffer fileSizeBuffer = ByteBuffer.allocate(8);
+                        fileSizeBuffer.putLong(fileLength);
 
-                        lengthBuffer.flip();
-                        serverChannel.write(lengthBuffer);
+                        fileSizeBuffer.flip();
 
-                        ByteBuffer responseBuffer = ByteBuffer.allocate(1024);
+                        serverChannel.write(fileSizeBuffer);
 
-                        while (fis.read(responseBuffer) != -1) {
-                            responseBuffer.flip();
 
-                            serverChannel.write(responseBuffer);
-                            responseBuffer.clear();
+                        System.out.println(fileLength);
+
+                        ByteBuffer contentBuffer = ByteBuffer.allocate(1024);
+
+                        while (fis.read(contentBuffer) != -1) {
+                            contentBuffer.flip();
+                            serverChannel.write(contentBuffer);
+                            contentBuffer.clear();
                         }
 
-                        responseBuffer.flip();
+                        fileInputStream.close();
                         fis.close();
 
                         sendSuccess(serverChannel);
-
-                        fileInputStream.close();
 
                         break;
                     }

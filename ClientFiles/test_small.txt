@@ -1,4 +1,0 @@
-This is test case #1:
-test_small.txt
-
-End of file.
