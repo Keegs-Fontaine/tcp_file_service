@@ -7,17 +7,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 
 public class RunClientTask implements Runnable {
-    private final int serverPort;
     private final String[] args;
     private final char command;
-    public RunClientTask(int serverPort, String[] args, char command) {
-        this.serverPort = serverPort;
+    public RunClientTask(String[] args, char command) {
         this.args = args;
         this.command = command;
     }
     public void run() {
         try {
             Scanner keyboard = new Scanner(System.in);
+            int serverPort = Integer.parseInt(args[1]);
             switch (command) {
                 //List File
                 case 'L':
